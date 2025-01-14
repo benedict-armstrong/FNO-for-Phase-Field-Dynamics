@@ -5,17 +5,16 @@ import torch
 from torch.utils.data import Dataset
 
 
-class PDEDataset(Dataset):
+class PDEDatasetAll2All(Dataset):
     def __init__(
         self,
         path: str,
         device: str = "cpu",
         time_pairs: List[Tuple[int, int]] = None,
     ):
-        super(PDEDataset, self).__init__()
+        super(PDEDatasetAll2All, self).__init__()
 
-        numpy_data = np.load(path)
-        self.data = torch.tensor(numpy_data).type(torch.float32).to(device)
+        self.data = torch.tensor(np.load(path)).type(torch.float32).to(device)
 
         self.samples = self.data.shape[0]
         self.time_steps = self.data.shape[1]
@@ -45,19 +44,6 @@ class PDEDataset(Dataset):
         return self.total_samples
 
     def __getitem__(self, index):
-        """
-
-        :param index: Index of the sample
-
-        :return:
-            time_delta: The time delta between the input and the target
-            inputs: The input data
-                shape: (spacial_res, 3) -> (u(x, t), t, epsilon)
-            target: The target data
-                shape: (spacial_res) -> (u(x, t))
-
-        returns the time delta, the input and the target
-        """
         sample_idx = index // self.len_times
         time_pair_idx = index % self.len_times
         t_inp, t_out = self.time_pairs[time_pair_idx]
@@ -71,7 +57,7 @@ class PDEDataset(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = PDEDataset()
+    dataset = PDEDatasetAll2All()
     raw_data = np.load("data/train_sol.npy")
 
     torch.manual_seed(0)
