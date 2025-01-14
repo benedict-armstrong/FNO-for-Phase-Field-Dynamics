@@ -213,8 +213,8 @@ def main():
 
     # Parameters for datasets
     epsilons = [0.1, 0.05, 0.02]  # Different epsilon values
-    n_train = 500  # Number of training samples per configuration
-    n_test = 200  # Number of test samples
+    n_train = 100  # Number of training samples per configuration
+    n_test = 50  # Number of test samples
     base_seed = 42  # For reproducibility
 
     out_dir = "data"

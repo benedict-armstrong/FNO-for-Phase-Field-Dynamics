@@ -4,16 +4,14 @@ from torch.utils.data import DataLoader
 import tqdm
 from torch.optim import Adam
 import matplotlib.pyplot as plt
-from model import FNO1d
 import os
-from dataset import PDEDataset
 import json
 import random
 import shutil
 
-
-def relative_l2_error(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-    return torch.norm(output - target) / torch.norm(target)
+from lib.model import FNO1d
+from lib.dataset import PDEDataset
+from lib.utils import relative_l2_error
 
 
 torch.manual_seed(0)
@@ -21,36 +19,44 @@ np.random.seed(0)
 
 BATCH_SIZE = 32
 DEVICE = "mps"
+
 training_id = random.randint(0, 1000000)
 
 training_notes = """Test"""
 
 
-dataset_train = PDEDataset(
-    "data/train_allen_cahn_fourier.npy",
-    device=DEVICE,
-    # time_pairs=[(0, 4)],
+dataset_train = (
+    PDEDataset(
+        "data/train_allen_cahn_fourier.npy",
+        device=DEVICE,
+    )
+    + PDEDataset(
+        "data/train_allen_cahn_gmm.npy",
+        device=DEVICE,
+    )
+    + PDEDataset(
+        "data/train_allen_cahn_piecewise.npy",
+        device=DEVICE,
+    )
 )
-dataset_validation = PDEDataset(
-    "data/test_allen_cahn_fourier.npy",
-    device=DEVICE,
-    # time_pairs=[(0, 4)],
+
+train_dataset, validation_dataset = torch.utils.data.random_split(
+    dataset_train, [int(0.8 * len(dataset_train)), int(0.2 * len(dataset_train))]
 )
 
 dataset_test = PDEDataset(
     "data/test_allen_cahn_fourier.npy",
     device=DEVICE,
-    # time_pairs=[(0, 4)],
 )
 
-train_data_loader = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=True)
-val_data_loader = DataLoader(dataset_validation, batch_size=BATCH_SIZE, shuffle=True)
+train_data_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+val_data_loader = DataLoader(validation_dataset, batch_size=BATCH_SIZE, shuffle=True)
 test_data_loader = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=True)
 
 
 learning_rate = 0.001
 epochs = 50
-step_size = 2
+step_size = 5
 gamma = 0.5
 
 modes = 16
