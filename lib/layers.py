@@ -65,12 +65,12 @@ class ResidualBlock(nn.Module):
         out = self.convolution1(x)
         out = self.batch_norm1(out, time)
         out = self.act(out)
-        # out = self.dropout1(out)
+        out = self.dropout1(out)
 
         out = self.convolution2(out)
         out = self.batch_norm2(out, time)
         out = self.act(out)
-        # out = self.dropout2(out)
+        out = self.dropout2(out)
 
         return self.batch_norm3(x, time) + out
 
@@ -89,6 +89,8 @@ class SpectralConv1d(nn.Module):
             self.scale
             * torch.rand(in_channels, out_channels, self.modes1, dtype=torch.cfloat)
         )
+
+        self.dropout = nn.Dropout(0.1)
 
         self.batch_norm1 = FILM(self.in_channels, use_bn)
 
@@ -118,6 +120,8 @@ class SpectralConv1d(nn.Module):
 
         # Return to physical space
         x = torch.fft.irfft(out_ft, n=x.size(-1))
+
+        x = self.dropout(x)
 
         x = self.batch_norm1(x, time_delta)
 
