@@ -81,25 +81,27 @@ def generate_piecewise_ic(x, n_pieces=None, seed=None):
         np.random.seed(seed)
 
     if n_pieces is None:
-        n_pieces = np.random.randint(3, 7)
+        n_pieces = np.random.randint(3, 6)
 
     # Generate breakpoints
-    breakpoints = np.sort(np.random.uniform(x.min(), x.max(), size=n_pieces))
-    # Generate values at breakpoints
-    values = np.random.uniform(-1, 1, size=n_pieces).tolist()
-    values += [values[0]]
-    # Create piecewise linear function with same start and end points (0)
-    conditions = (
-        [x < breakpoints[0]]
-        + [
-            np.logical_and(x >= breakpoints[i], x < breakpoints[i + 1])
-            for i in range(n_pieces - 1)
-        ]
-        + [x >= breakpoints[-1]]
-    )
+    breakpoints = np.sort(np.random.uniform(x[0], x[-1], n_pieces))
+    breakpoints = np.concatenate([[x[0]], breakpoints, [x[-1]]])
 
-    res = np.piecewise(x, conditions, values)
-    return res
+    # Generate random y values at breakpoints
+    y_values = np.random.uniform(-1, 1, n_pieces)
+
+    # add boundary value to incorporate the periodic boundary condition (first/last value should be linear between the last and first breakpoints)
+    b_dx_1 = abs(breakpoints[0] - breakpoints[1])
+    b_dx_2 = abs(breakpoints[-1] - breakpoints[-2])
+    dy = y_values[0] - y_values[-1]
+
+    first_value = y_values[0] - dy * b_dx_1 / (b_dx_1 + b_dx_2)
+    last_value = y_values[-1] + dy * b_dx_2 / (b_dx_1 + b_dx_2)
+
+    y_values = np.concatenate([[first_value], y_values, [last_value]])
+
+    # Interpolate
+    return np.interp(x, breakpoints, y_values)
 
 
 def generate_sawtooth_ic(x, n_sawteeth=None, seed=None):
@@ -213,7 +215,7 @@ def main():
 
     # Parameters for datasets
     epsilons = [0.1, 0.05, 0.02]  # Different epsilon values
-    n_train = 100  # Number of training samples per configuration
+    n_train = 10  # Number of training samples per configuration
     n_test = 50  # Number of test samples
     base_seed = 42  # For reproducibility
 
