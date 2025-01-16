@@ -27,7 +27,7 @@ class PDEDatasetAll2All(Dataset):
             self.time_pairs = [
                 (i, j)
                 for i in range(0, self.time_steps)
-                for j in range(i, self.time_steps)
+                for j in range(i + 1, self.time_steps)
             ]
 
         self.len_times = len(self.time_pairs)
@@ -52,13 +52,17 @@ class PDEDatasetAll2All(Dataset):
         target = self.data[sample_idx, t_out]
 
         time_delta = abs((input[0, 1] - target[0, 1]).item())
+        epsilons = input[0, 2].item()
 
-        return float(time_delta), input, target[..., 0]
+        return float(time_delta), epsilons, input, target[..., 0]
 
 
 if __name__ == "__main__":
-    dataset = PDEDatasetAll2All()
-    raw_data = np.load("data/train_sol.npy")
+    dataset = PDEDatasetAll2All(
+        "FNO-for-Phase-Field-Dynamics/data/test_allen_cahn_fourier.npy"
+    )
+    dataset[0]
+    raw_data = np.load("FNO-for-Phase-Field-Dynamics/data/test_allen_cahn_fourier.npy")
 
     torch.manual_seed(0)
     np.random.seed(0)

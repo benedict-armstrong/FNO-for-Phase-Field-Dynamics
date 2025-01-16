@@ -158,7 +158,7 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
     # each spatial point has 3 values (u(x, t), t, epsilon)
     dataset = np.zeros((n_samples, 5, len(x_grid), 3))
 
-    t_eval = t_eval * epsilon**1.75
+    t_eval = t_eval * epsilon**1.6
     # print(t_eval)
 
     # Generate samples
@@ -215,7 +215,7 @@ def main():
 
     # Parameters for datasets
     epsilons = [0.1, 0.05, 0.02]  # Different epsilon values
-    n_train = 50  # Number of training samples per configuration
+    n_train = 100  # Number of training samples per configuration
     n_test = 50  # Number of test samples
     base_seed = 42  # For reproducibility
 

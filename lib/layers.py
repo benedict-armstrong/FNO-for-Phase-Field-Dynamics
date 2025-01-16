@@ -3,12 +3,18 @@ import torch.nn as nn
 
 
 class FILM(torch.nn.Module):
-    def __init__(self, channels, use_bn=True):
+    def __init__(self, channels, lift_dim: int = 16, use_bn=True):
         super(FILM, self).__init__()
         self.channels = channels
 
-        self.inp2scale = nn.Linear(in_features=1, out_features=channels, bias=True)
-        self.inp2bias = nn.Linear(in_features=1, out_features=channels, bias=True)
+        self.linear = nn.Linear(in_features=2, out_features=lift_dim)
+
+        self.inp2scale = nn.Linear(
+            in_features=lift_dim, out_features=channels, bias=True
+        )
+        self.inp2bias = nn.Linear(
+            in_features=lift_dim, out_features=channels, bias=True
+        )
 
         self.inp2scale.weight.data.fill_(0)
         self.inp2scale.bias.data.fill_(1)
@@ -22,7 +28,8 @@ class FILM(torch.nn.Module):
 
     def forward(self, x: torch.Tensor, time: torch.Tensor):
         x = self.norm(x)
-        time = time.reshape(-1, 1).type_as(x)
+        time = time.reshape(-1, 2).type_as(x)
+        time = self.linear(time)
         scale = self.inp2scale(time)
         bias = self.inp2bias(time)
         scale = scale.unsqueeze(2).expand_as(x)
@@ -52,27 +59,29 @@ class ResidualBlock(nn.Module):
             padding_mode="circular",
         )
 
-        self.batch_norm1 = FILM(self.channels, use_bn)
-        self.batch_norm2 = FILM(self.channels, use_bn)
-        self.batch_norm3 = FILM(self.channels, use_bn)
+        self.batch_norm1 = FILM(self.channels, use_bn=use_bn)
+        self.batch_norm2 = FILM(self.channels, use_bn=use_bn)
+        self.batch_norm3 = FILM(self.channels, use_bn=use_bn)
 
         self.dropout1 = nn.Dropout(0.1)
         self.dropout2 = nn.Dropout(0.1)
 
-        self.act = torch.nn.ReLU()
+        self.act = torch.nn.Tanh()
 
-    def forward(self, x: torch.Tensor, time: torch.Tensor):
+    def forward(self, x: torch.Tensor, time: torch.Tensor, epsilons: torch.Tensor):
+        time_eps = torch.stack([time, epsilons], dim=-1)
+
         out = self.convolution1(x)
-        out = self.batch_norm1(out, time)
         out = self.act(out)
+        out = self.batch_norm1(out, time_eps)
         out = self.dropout1(out)
 
         out = self.convolution2(out)
-        out = self.batch_norm2(out, time)
         out = self.act(out)
+        out = self.batch_norm2(out, time_eps)
         out = self.dropout2(out)
 
-        return self.batch_norm3(x, time) + out
+        return self.batch_norm3(x, time_eps) + out
 
 
 class SpectralConv1d(nn.Module):
@@ -89,17 +98,20 @@ class SpectralConv1d(nn.Module):
             self.scale
             * torch.rand(in_channels, out_channels, self.modes1, dtype=torch.cfloat)
         )
+        self.batch_norm1 = FILM(self.in_channels, use_bn=use_bn)
 
-        self.dropout = nn.Dropout(0.1)
-
-        self.batch_norm1 = FILM(self.in_channels, use_bn)
+        self.activation = torch.nn.Tanh()
 
     # Complex multiplication
     def compl_mul1d(self, input, weights):
         # (batch, in_channel, x ), (in_channel, out_channel, x) -> (batch, out_channel, x)
         return torch.einsum("bix,iox->box", input, weights)
 
-    def forward(self, x, time_delta):
+    def forward(self, x, time_delta, epsilons):
+        # print(time_delta.shape, epsilons.shape)
+
+        time_eps = torch.stack([time_delta, epsilons], dim=-1)
+
         batchsize = x.shape[0]
         # x.shape == [batch_size, in_channels, number of grid points]
         # hint: use torch.fft library torch.fft.rfft
@@ -121,8 +133,8 @@ class SpectralConv1d(nn.Module):
         # Return to physical space
         x = torch.fft.irfft(out_ft, n=x.size(-1))
 
-        x = self.dropout(x)
+        x = self.batch_norm1(x, time_eps)
 
-        x = self.batch_norm1(x, time_delta)
+        x = self.activation(x)
 
         return x
