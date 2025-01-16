@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class FILM(torch.nn.Module):
-    def __init__(self, channels, lift_dim: int = 16, use_bn=True):
+    def __init__(self, channels, lift_dim: int = 32, use_bn=True):
         super(FILM, self).__init__()
         self.channels = channels
 
