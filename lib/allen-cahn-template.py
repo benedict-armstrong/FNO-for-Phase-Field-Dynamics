@@ -159,7 +159,7 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
     # each spatial point has 3 values (u(x, t), t, epsilon)
     dataset = np.zeros((n_samples, 5, len(x_grid), 3))
 
-    time_scale = epsilon**1.3
+    time_scale = epsilon**1.1
     t_eval = t_eval * time_scale
     # print(t_eval)
 
@@ -176,7 +176,12 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
             u0 = generate_piecewise_ic(x_grid, seed=seed + i if seed else None)
         elif ic_type == "OOD":
             # TODO: Generate OOD initial condition
-            u0 = generate_sawtooth_ic(x_grid, seed=seed + i if seed else None)
+            if i % 3 == 0:
+                u0 = generate_fourier_ic(x_grid, seed=seed + 1234 if seed else None)
+            elif i % 3 == 1:
+                u0 = generate_gmm_ic(x_grid, seed=seed + 1234 if seed else None)
+            else:
+                u0 = generate_piecewise_ic(x_grid, seed=seed + 1234 if seed else None)
         else:
             raise ValueError(f"Unknown IC type: {ic_type}")
 
@@ -201,11 +206,8 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
         solution = sol.y.T
 
         epsilon_values = np.ones(solution.shape) * epsilon
-        time_values = (
-            time_eval_points.reshape(len(time_eval_points), 1).repeat(
-                len(x_grid), axis=-1
-            )
-            / time_scale
+        time_values = time_eval_points.reshape(len(time_eval_points), 1).repeat(
+            len(x_grid), axis=-1
         )
 
         dataset[i] = np.stack([solution, time_values, epsilon_values], axis=-1)
@@ -220,19 +222,20 @@ def main():
     x_grid = np.linspace(-1, 1, nx)
 
     # Set up temporal grid
-    train_t_eval = np.logspace(0, 1, 30, base=2) - 1
+    train_t_eval = np.logspace(0, 1, 50, base=1000) - 1
+    train_t_eval = train_t_eval / train_t_eval[-1]
     print(train_t_eval)
 
-    # plt.plot(train_t_eval, np.zeros_like(train_t_eval), "o")
-    # plt.savefig("test.png")
+    plt.plot(train_t_eval, np.zeros_like(train_t_eval), "o")
+    plt.savefig("test.png")
 
-    # exit()
+    exit()
 
     test_t_eval = np.array([0.0, 0.25, 0.50, 0.75, 1.0])
 
     # Parameters for datasets
     epsilons = [0.1, 0.05, 0.02]  # Different epsilon values
-    n_train = 250  # Number of training samples per configuration
+    n_train = 300  # Number of training samples per configuration
     n_test = 100  # Number of test samples
     base_seed = 42  # For reproducibility
 
