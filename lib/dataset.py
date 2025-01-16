@@ -27,7 +27,7 @@ class PDEDatasetAll2All(Dataset):
             self.time_pairs = [
                 (i, j)
                 for i in range(0, self.time_steps)
-                for j in range(i + 1, self.time_steps)
+                for j in range(i, self.time_steps)
             ]
 
         self.len_times = len(self.time_pairs)
