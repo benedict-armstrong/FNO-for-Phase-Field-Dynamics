@@ -24,8 +24,8 @@ class FNO1d(nn.Module):
         self.last_layer_width = 32
 
         self.linear_p = nn.Linear(
-            3, self.width
-        )  # input channel is 2: (u0(x), x, t) --> GRID IS INCLUDED!
+            4, self.width
+        )  # input channel is 4: (u0(x; epsilon), x, epsilon, time) --> GRID IS INCLUDED!
 
         self.spectral_layers = nn.ModuleList(
             [SpectralConv1d(self.width, self.width, self.modes) for _ in range(layers)]

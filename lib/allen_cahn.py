@@ -171,7 +171,9 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
     # for each sample, we have 5 time points
     # each time point has len(x_grid) spatial points
     # each spatial point has 3 values (u(x, t), t, epsilon)
-    dataset = np.zeros((n_samples, 5, len(x_grid), 3))
+    dataset = np.zeros((n_samples, 5, len(x_grid)))
+    times = np.zeros((n_samples, 5))
+    epsilons = np.zeros((n_samples))
 
     # Generate samples
     for i in tqdm.trange(
@@ -215,14 +217,16 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
 
         solution = sol.y.T
 
-        epsilon_values = np.ones(solution.shape) * epsilon
-        time_values = time_eval_points.reshape(len(time_eval_points), 1).repeat(
-            len(x_grid), axis=-1
-        )
+        # epsilon_values = np.ones(solution.shape) * epsilon
+        # time_values = time_eval_points.reshape(len(time_eval_points), 1).repeat(
+        #     len(x_grid), axis=-1
+        # )
 
-        dataset[i] = np.stack([solution, time_values, epsilon_values], axis=-1)
+        dataset[i] = solution
+        times[i] = time_eval_points
+        epsilons[i] = epsilon
 
-    return dataset
+    return dataset, times, epsilons
 
 
 def main():
@@ -233,7 +237,7 @@ def main():
 
     # Set up temporal grid
     t_end = 1
-    train_t_eval = np.logspace(0, t_end, 30, base=2) - 1
+    train_t_eval = np.logspace(0, t_end, 30, base=3) - 1
     train_t_eval = train_t_eval / train_t_eval[-1] * t_end
     test_t_eval = np.linspace(0, t_end, 5)
 
@@ -270,11 +274,19 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
 
     for ic in ["fourier", "gmm", "piecewise"]:
-        datasets_train = []
-        datasets_test = []
+        training = {
+            "dataset": [],
+            "time": [],
+            "epsilon": [],
+        }
+        testing = {
+            "dataset": [],
+            "time": [],
+            "epsilon": [],
+        }
         for epsilon in epsilons:
             # time_scaling = epsilon**1.5
-            time_scaling = epsilon**1.7
+            time_scaling = epsilon
 
             t_train = train_t_eval * time_scaling
             t_test = test_t_eval * time_scaling
@@ -283,21 +295,35 @@ def main():
             print(f"Generating datasets for ε={epsilon}, IC={ic} at {t_test}")
 
             # Generate training datasets for each epsilon and IC type
-            dataset = generate_dataset(
+            dataset, ts, eps = generate_dataset(
                 n_train, epsilon, x_grid, t_train, ic_type=ic, seed=base_seed
             )
 
-            datasets_train.append(dataset)
+            training["dataset"].append(dataset)
+            training["time"].append(ts)
+            training["epsilon"].append(eps)
 
             # Generate standard test dataset
-            dataset = generate_dataset(
+            dataset, ts, eps = generate_dataset(
                 n_test, epsilon, x_grid, t_test, ic_type=ic, seed=base_seed + 100
             )
 
-            datasets_test.append(dataset)
+            testing["dataset"].append(dataset)
+            testing["time"].append(ts)
+            testing["epsilon"].append(eps)
 
-        np.save(f"{out_dir}/train_allen_cahn_{ic}.npy", np.concatenate(datasets_train))
-        np.save(f"{out_dir}/test_allen_cahn_{ic}.npy", np.concatenate(datasets_test))
+        np.savez(
+            f"{out_dir}/train_allen_cahn_{ic}.npz",
+            data=np.concatenate(training["dataset"]),
+            time=np.concatenate(training["time"]),
+            epsilon=np.concatenate(training["epsilon"]),
+        )
+        np.savez(
+            f"{out_dir}/test_allen_cahn_{ic}.npz",
+            data=np.concatenate(testing["dataset"]),
+            time=np.concatenate(testing["time"]),
+            epsilon=np.concatenate(testing["epsilon"]),
+        )
     # TODO: Generate OOD test datasets (high frequency, sharp transitions)
     # Save all datasets using np.save
 
