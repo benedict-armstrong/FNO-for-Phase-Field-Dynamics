@@ -39,12 +39,14 @@ class FNO1d(nn.Module):
 
         self.output_layer = nn.Linear(self.last_layer_width, 1)
 
-        self.last_activation = torch.nn.ReLU()
+        self.fourier_activations = torch.nn.Tanh()
+        self.last_activation = torch.nn.Tanh()
         self.dropout = nn.Dropout(0.2)
 
     def fourier_layer(self, x, time_delta, epsilons):
         for f, c in zip(self.spectral_layers, self.linear_conv_layers):
             x = f(x, time_delta, epsilons) + c(x, time_delta, epsilons)
+            x = self.fourier_activations(x)
             x = self.dropout(x)
         return x
 

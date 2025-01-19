@@ -84,6 +84,8 @@ def generate_piecewise_ic(x, n_pieces=None, seed=None):
     if n_pieces is None:
         n_pieces = np.random.randint(3, 6)
 
+    n_disc = np.random.randint(0, 2)
+
     # Generate breakpoints
     breakpoints = np.sort(np.random.uniform(x[0], x[-1], n_pieces))
     breakpoints = np.concatenate([[x[0]], breakpoints, [x[-1]]])
@@ -102,7 +104,19 @@ def generate_piecewise_ic(x, n_pieces=None, seed=None):
     y_values = np.concatenate([[first_value], y_values, [last_value]])
 
     # Interpolate
-    return np.interp(x, breakpoints, y_values)
+    f = np.interp(x, breakpoints, y_values)
+
+    # Add occasional discontinuities
+    for _ in range(n_disc):
+        # Randomly select a segment
+        idx = np.random.randint(1, len(breakpoints) - 1)
+        f = np.where(
+            (x >= breakpoints[idx - 1]) & (x < breakpoints[idx]),
+            f + np.random.uniform(-0.5, 0.5),
+            f,
+        )
+
+    return f
 
 
 def generate_sawtooth_ic(x, n_sawteeth=None, seed=None):
@@ -158,10 +172,6 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
     # each time point has len(x_grid) spatial points
     # each spatial point has 3 values (u(x, t), t, epsilon)
     dataset = np.zeros((n_samples, 5, len(x_grid), 3))
-
-    time_scale = epsilon**1.1
-    t_eval = t_eval * time_scale
-    # print(t_eval)
 
     # Generate samples
     for i in tqdm.trange(
@@ -222,21 +232,38 @@ def main():
     x_grid = np.linspace(-1, 1, nx)
 
     # Set up temporal grid
-    train_t_eval = np.logspace(0, 1, 50, base=1000) - 1
-    train_t_eval = train_t_eval / train_t_eval[-1]
-    print(train_t_eval)
+    t_end = 1
+    train_t_eval = np.logspace(0, t_end, 30, base=2) - 1
+    train_t_eval = train_t_eval / train_t_eval[-1] * t_end
+    test_t_eval = np.linspace(0, t_end, 5)
 
+    print(f"Train t_eval: {train_t_eval}")
+    print(f"Test t_eval: {test_t_eval}")
+
+    plt.figure(figsize=(6, 1))
+    plt.xlim(-0.1, t_end + 0.1)
+    plt.ylim(-0.1, 0.1)
+
+    # turn of y-axis
+    plt.yticks([])
+
+    # remove frame
+    plt.box(False)
+
+    # remove padding around data so that the frame is tight around the data
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.6, bottom=0.4)
+
+    plt.xticks([0, t_end / 2, t_end])
     plt.plot(train_t_eval, np.zeros_like(train_t_eval), "o")
-    plt.savefig("test.png")
+    plt.plot(test_t_eval, np.zeros_like(test_t_eval), "x")
+    plt.savefig("eval_points.png")
 
-    exit()
-
-    test_t_eval = np.array([0.0, 0.25, 0.50, 0.75, 1.0])
+    # exit()
 
     # Parameters for datasets
     epsilons = [0.1, 0.05, 0.02]  # Different epsilon values
-    n_train = 300  # Number of training samples per configuration
-    n_test = 100  # Number of test samples
+    n_train = 100  # Number of training samples per configuration
+    n_test = 50  # Number of test samples
     base_seed = 42  # For reproducibility
 
     out_dir = "data"
@@ -246,18 +273,25 @@ def main():
         datasets_train = []
         datasets_test = []
         for epsilon in epsilons:
-            # print(f"Generating datasets for IC: {ic}, epsilon: {epsilon}")
+            # time_scaling = epsilon**1.5
+            time_scaling = epsilon**1.7
+
+            t_train = train_t_eval * time_scaling
+            t_test = test_t_eval * time_scaling
+
+            print(f"Generating datasets for ε={epsilon}, IC={ic} at {t_train}")
+            print(f"Generating datasets for ε={epsilon}, IC={ic} at {t_test}")
 
             # Generate training datasets for each epsilon and IC type
             dataset = generate_dataset(
-                n_train, epsilon, x_grid, train_t_eval, ic_type=ic, seed=base_seed
+                n_train, epsilon, x_grid, t_train, ic_type=ic, seed=base_seed
             )
 
             datasets_train.append(dataset)
 
             # Generate standard test dataset
             dataset = generate_dataset(
-                n_test, epsilon, x_grid, test_t_eval, ic_type=ic, seed=base_seed + 100
+                n_test, epsilon, x_grid, t_test, ic_type=ic, seed=base_seed + 100
             )
 
             datasets_test.append(dataset)
@@ -267,16 +301,16 @@ def main():
     # TODO: Generate OOD test datasets (high frequency, sharp transitions)
     # Save all datasets using np.save
 
-    OOD_epsilons = [0.2, 0.15, 0.1, 0.005, 0.001]
-    OOD_datasets = []
-    for epsilon in OOD_epsilons:
-        dataset = generate_dataset(
-            20, epsilon, x_grid, test_t_eval, ic_type="OOD", seed=base_seed + 200
-        )
+    # OOD_epsilons = [0.2, 0.15, 0.1, 0.005]
+    # OOD_datasets = []
+    # for epsilon in OOD_epsilons:
+    #     dataset = generate_dataset(
+    #         n_test, epsilon, x_grid, test_t_eval, ic_type="OOD", seed=base_seed + 200
+    #     )
 
-        OOD_datasets.append(dataset)
+    #     OOD_datasets.append(dataset)
 
-    np.save(f"{out_dir}/OOD_allen_cahn.npy", np.concatenate(OOD_datasets))
+    # np.save(f"{out_dir}/OOD_allen_cahn.npy", np.concatenate(OOD_datasets))
 
 
 if __name__ == "__main__":

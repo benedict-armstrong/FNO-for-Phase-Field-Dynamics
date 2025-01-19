@@ -135,6 +135,4 @@ class SpectralConv1d(nn.Module):
 
         x = self.batch_norm1(x, time_eps)
 
-        x = self.activation(x)
-
         return x
