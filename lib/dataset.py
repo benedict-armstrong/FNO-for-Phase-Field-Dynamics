@@ -14,6 +14,7 @@ class PDEDatasetAll2All(Dataset):
     ):
         super(PDEDatasetAll2All, self).__init__()
 
+        self.device = device
         self.numpy_data = np.load(path)
 
         self.data = torch.tensor(self.numpy_data["data"]).type(torch.float32).to(device)
@@ -63,8 +64,8 @@ class PDEDatasetAll2All(Dataset):
 
         input = self.data[sample_idx, t_inp]
 
-        epsilon_tensor = torch.ones(input.shape) * sample_eps
-        time_tensor = torch.ones(input.shape) * time_delta
+        epsilon_tensor = torch.ones(input.shape, device=self.device) * sample_eps
+        time_tensor = torch.ones(input.shape, device=self.device) * time_delta
 
         input = torch.stack([input, self.x_grid, epsilon_tensor, time_tensor], axis=-1)
 

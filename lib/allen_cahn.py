@@ -1,3 +1,4 @@
+import json
 import os
 from matplotlib import pyplot as plt
 import numpy as np
@@ -189,11 +190,19 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
         elif ic_type == "OOD":
             # TODO: Generate OOD initial condition
             if i % 3 == 0:
-                u0 = generate_fourier_ic(x_grid, seed=seed + 1234 if seed else None)
+                u0 = generate_fourier_ic(
+                    x_grid,
+                    seed=seed if seed else None,
+                    # n_modes=np.random.randint(1, 3),
+                )
             elif i % 3 == 1:
-                u0 = generate_gmm_ic(x_grid, seed=seed + 1234 if seed else None)
+                u0 = generate_gmm_ic(
+                    x_grid,
+                    seed=seed if seed else None,
+                    n_components=np.random.randint(2, 8),
+                )
             else:
-                u0 = generate_piecewise_ic(x_grid, seed=seed + 1234 if seed else None)
+                u0 = generate_piecewise_ic(x_grid, seed=seed if seed else None)
         else:
             raise ValueError(f"Unknown IC type: {ic_type}")
 
@@ -216,11 +225,6 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
         )
 
         solution = sol.y.T
-
-        # epsilon_values = np.ones(solution.shape) * epsilon
-        # time_values = time_eval_points.reshape(len(time_eval_points), 1).repeat(
-        #     len(x_grid), axis=-1
-        # )
 
         dataset[i] = solution
         times[i] = time_eval_points
@@ -264,16 +268,22 @@ def main():
 
     # exit()
 
+    config = {}
+
     # Parameters for datasets
-    epsilons = [0.1, 0.05, 0.02]  # Different epsilon values
-    n_train = 100  # Number of training samples per configuration
-    n_test = 50  # Number of test samples
-    base_seed = 42  # For reproducibility
+    config["epsilons"] = [0.1, 0.05, 0.02]  # Different epsilon values
+    config["ic_types"] = ["fourier", "gmm", "piecewise"]  # Different IC types
+    config["n_train"] = 400  # Number of training samples per configuration
+    config["n_test"] = 100  # Number of test samples
+    config["base_seed"] = 42  # For reproducibility
+    config["time_scaling"] = {}
+    config["train_time"] = train_t_eval.tolist()
+    config["test_time"] = test_t_eval.tolist()
 
     out_dir = "data"
     os.makedirs(out_dir, exist_ok=True)
 
-    for ic in ["fourier", "gmm", "piecewise"]:
+    for ic in config["ic_types"]:
         training = {
             "dataset": [],
             "time": [],
@@ -284,9 +294,11 @@ def main():
             "time": [],
             "epsilon": [],
         }
-        for epsilon in epsilons:
+        for epsilon in config["epsilons"]:
             # time_scaling = epsilon**1.5
             time_scaling = epsilon
+
+            config["time_scaling"][epsilon] = time_scaling
 
             t_train = train_t_eval * time_scaling
             t_test = test_t_eval * time_scaling
@@ -295,48 +307,80 @@ def main():
             print(f"Generating datasets for ε={epsilon}, IC={ic} at {t_test}")
 
             # Generate training datasets for each epsilon and IC type
-            dataset, ts, eps = generate_dataset(
-                n_train, epsilon, x_grid, t_train, ic_type=ic, seed=base_seed
-            )
+        #     dataset, ts, eps = generate_dataset(
+        #         config["n_train"],
+        #         epsilon,
+        #         x_grid,
+        #         t_train,
+        #         ic_type=ic,
+        #         seed=config["base_seed"],
+        #     )
 
-            training["dataset"].append(dataset)
-            training["time"].append(ts)
-            training["epsilon"].append(eps)
+        #     training["dataset"].append(dataset)
+        #     training["time"].append(ts)
+        #     training["epsilon"].append(eps)
 
-            # Generate standard test dataset
-            dataset, ts, eps = generate_dataset(
-                n_test, epsilon, x_grid, t_test, ic_type=ic, seed=base_seed + 100
-            )
+        #     # Generate standard test dataset
+        #     dataset, ts, eps = generate_dataset(
+        #         config["n_test"],
+        #         epsilon,
+        #         x_grid,
+        #         t_test,
+        #         ic_type=ic,
+        #         seed=config["base_seed"] + 100,
+        #     )
 
-            testing["dataset"].append(dataset)
-            testing["time"].append(ts)
-            testing["epsilon"].append(eps)
+        #     testing["dataset"].append(dataset)
+        #     testing["time"].append(ts)
+        #     testing["epsilon"].append(eps)
 
-        np.savez(
-            f"{out_dir}/train_allen_cahn_{ic}.npz",
-            data=np.concatenate(training["dataset"]),
-            time=np.concatenate(training["time"]),
-            epsilon=np.concatenate(training["epsilon"]),
+        # np.savez(
+        #     f"{out_dir}/train_allen_cahn_{ic}.npz",
+        #     data=np.concatenate(training["dataset"]),
+        #     time=np.concatenate(training["time"]),
+        #     epsilon=np.concatenate(training["epsilon"]),
+        # )
+        # np.savez(
+        #     f"{out_dir}/test_allen_cahn_{ic}.npz",
+        #     data=np.concatenate(testing["dataset"]),
+        #     time=np.concatenate(testing["time"]),
+        #     epsilon=np.concatenate(testing["epsilon"]),
+        # )
+
+    config["OOD_epsilons"] = [0.2, 0.15, 0.075, 0.035, 0.005]
+
+    OOD_datasets = {
+        "dataset": [],
+        "time": [],
+        "epsilon": [],
+    }
+    for epsilon in config["OOD_epsilons"]:
+        time_scaling = epsilon
+        t_ood = test_t_eval * time_scaling
+
+        dataset, ts, eps = generate_dataset(
+            config["n_test"],
+            epsilon,
+            x_grid,
+            t_ood,
+            ic_type="OOD",
+            seed=config["base_seed"] + 200,
         )
-        np.savez(
-            f"{out_dir}/test_allen_cahn_{ic}.npz",
-            data=np.concatenate(testing["dataset"]),
-            time=np.concatenate(testing["time"]),
-            epsilon=np.concatenate(testing["epsilon"]),
-        )
-    # TODO: Generate OOD test datasets (high frequency, sharp transitions)
-    # Save all datasets using np.save
 
-    # OOD_epsilons = [0.2, 0.15, 0.1, 0.005]
-    # OOD_datasets = []
-    # for epsilon in OOD_epsilons:
-    #     dataset = generate_dataset(
-    #         n_test, epsilon, x_grid, test_t_eval, ic_type="OOD", seed=base_seed + 200
-    #     )
+        OOD_datasets["dataset"].append(dataset)
+        OOD_datasets["time"].append(ts)
+        OOD_datasets["epsilon"].append(eps)
 
-    #     OOD_datasets.append(dataset)
+    np.savez(
+        f"{out_dir}/OOD_allen_cahn.npz",
+        data=np.concatenate(OOD_datasets["dataset"]),
+        time=np.concatenate(OOD_datasets["time"]),
+        epsilon=np.concatenate(OOD_datasets["epsilon"]),
+    )
 
-    # np.save(f"{out_dir}/OOD_allen_cahn.npy", np.concatenate(OOD_datasets))
+    # save config to file
+    with open(f"{out_dir}/config.json", "w") as f:
+        json.dump(config, f)
 
 
 if __name__ == "__main__":
