@@ -56,7 +56,7 @@ class FNO1d(nn.Module):
         x = self.linear_p(x)
         # swap the channel dimension to the last dimension
         x = x.permute(0, 2, 1)
-        x = self.fourier_layer(x, torch.exp(time_delta), epsilons)
+        x = self.fourier_layer(x, time_delta, epsilons)
         x = x.permute(0, 2, 1)
         x = self.linear_q(x)
         x = self.last_activation(x)
