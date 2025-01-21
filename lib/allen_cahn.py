@@ -215,6 +215,12 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
                     seed=seed if seed else None,
                     discontinuities=np.random.randint(0, 3),
                 )
+        elif ic_type == "HF":
+            u0 = generate_fourier_ic(
+                x_grid,
+                seed=seed if seed else None,
+                n_modes=np.random.randint(6, 10),
+            )
         else:
             raise ValueError(f"Unknown IC type: {ic_type}")
 
@@ -344,56 +350,76 @@ def main():
     out_dir = "data"
     os.makedirs(out_dir, exist_ok=True)
 
-    for ic in config["ic_types"]:
-        create_dataset(
-            config["epsilons"],
-            train_t_eval,
-            ic,
-            config["n_train"],
-            x_grid,
-            config["base_seed"],
-            f"{out_dir}/train_allen_cahn_{ic}.npz",
-        )
+    # for ic in config["ic_types"]:
+    #     create_dataset(
+    #         config["epsilons"],
+    #         train_t_eval,
+    #         ic,
+    #         config["n_train"],
+    #         x_grid,
+    #         config["base_seed"],
+    #         f"{out_dir}/train_allen_cahn_{ic}.npz",
+    #     )
 
-        create_dataset(
-            config["epsilons"],
-            test_t_eval,
-            ic,
-            config["n_test"],
-            x_grid,
-            config["base_seed"] + 100,
-            f"{out_dir}/test_allen_cahn_{ic}.npz",
-        )
+    #     create_dataset(
+    #         config["epsilons"],
+    #         test_t_eval,
+    #         ic,
+    #         config["n_test"],
+    #         x_grid,
+    #         config["base_seed"] + 100,
+    #         f"{out_dir}/test_allen_cahn_{ic}.npz",
+    #     )
 
     config["OOD_epsilons"] = [0.2, 0.15, 0.075, 0.035, 0.005]
-    create_dataset(
-        config["OOD_epsilons"],
-        test_t_eval,
-        "OOD",
-        config["n_test"],
-        x_grid,
-        config["base_seed"] + 200,
-        f"{out_dir}/OOD_allen_cahn.npz",
-    )
+    # create_dataset(
+    #     config["OOD_epsilons"],
+    #     test_t_eval,
+    #     "OOD",
+    #     config["n_test"],
+    #     x_grid,
+    #     config["base_seed"] + 200,
+    #     f"{out_dir}/OOD_allen_cahn.npz",
+    # )
 
-    create_dataset(
-        config["OOD_epsilons"],
-        test_t_eval,
-        "OOD",
-        30,
-        x_grid,
-        config["base_seed"] + 123,
-        f"{out_dir}/OOD_fine_tune_allen_cahn.npz",
-    )
+    # create_dataset(
+    #     config["OOD_epsilons"],
+    #     test_t_eval,
+    #     "OOD",
+    #     30,
+    #     x_grid,
+    #     config["base_seed"] + 123,
+    #     f"{out_dir}/OOD_fine_tune_allen_cahn.npz",
+    # )
+
+    # create_dataset(
+    #     config["epsilons"],
+    #     test_t_eval,
+    #     "OOD",
+    #     config["n_test"],
+    #     x_grid,
+    #     config["base_seed"] + 300,
+    #     f"{out_dir}/OOD_IC_allen_cahn.npz",
+    # )
 
     create_dataset(
         config["epsilons"],
         test_t_eval,
-        "OOD",
-        config["n_test"],
+        "HF",
+        20,
         x_grid,
-        config["base_seed"] + 300,
-        f"{out_dir}/OOD_IC_allen_cahn.npz",
+        config["base_seed"] + 12,
+        f"{out_dir}/OOD_HF_allen_cahn.npz",
+    )
+
+    create_dataset(
+        [0.005, 0.001, 0.0001],
+        test_t_eval,
+        "fourier",
+        20,
+        x_grid,
+        config["base_seed"] + 543,
+        f"{out_dir}/OOD_LOW_E_allen_cahn.npz",
     )
 
     # save config to file
