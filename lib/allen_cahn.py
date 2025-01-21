@@ -72,7 +72,7 @@ def generate_gmm_ic(x, n_components=None, seed=None):
     return res
 
 
-def generate_piecewise_ic(x, n_pieces=None, seed=None):
+def generate_piecewise_ic(x, n_pieces=None, seed=None, discontinuities=None):
     """Generate piecewise linear initial condition.
     Hints:
     1. Generate random breakpoints
@@ -85,7 +85,8 @@ def generate_piecewise_ic(x, n_pieces=None, seed=None):
     if n_pieces is None:
         n_pieces = np.random.randint(3, 6)
 
-    n_disc = np.random.randint(0, 2)
+    if discontinuities is None:
+        discontinuities = np.random.randint(0, 2)
 
     # Generate breakpoints
     breakpoints = np.sort(np.random.uniform(x[0], x[-1], n_pieces))
@@ -108,7 +109,7 @@ def generate_piecewise_ic(x, n_pieces=None, seed=None):
     f = np.interp(x, breakpoints, y_values)
 
     # Add occasional discontinuities
-    for _ in range(n_disc):
+    for _ in range(discontinuities):
         # Randomly select a segment
         idx = np.random.randint(1, len(breakpoints) - 1)
         f = np.where(
@@ -116,6 +117,9 @@ def generate_piecewise_ic(x, n_pieces=None, seed=None):
             f + np.random.uniform(-0.5, 0.5),
             f,
         )
+
+    # make sure the response is normalized to [-1, 1]
+    f = 2 * (f - f.min()) / (f.max() - f.min()) - 1
 
     return f
 
@@ -186,7 +190,11 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
         elif ic_type == "gmm":
             u0 = generate_gmm_ic(x_grid, seed=seed + i if seed else None)
         elif ic_type == "piecewise":
-            u0 = generate_piecewise_ic(x_grid, seed=seed + i if seed else None)
+            u0 = generate_piecewise_ic(
+                x_grid,
+                seed=seed + i if seed else None,
+                discontinuities=np.random.randint(0, 1),
+            )
         elif ic_type == "OOD":
             # TODO: Generate OOD initial condition
             if i % 3 == 0:
@@ -202,7 +210,11 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
                     n_components=np.random.randint(2, 8),
                 )
             else:
-                u0 = generate_piecewise_ic(x_grid, seed=seed if seed else None)
+                u0 = generate_piecewise_ic(
+                    x_grid,
+                    seed=seed if seed else None,
+                    discontinuities=np.random.randint(0, 3),
+                )
         else:
             raise ValueError(f"Unknown IC type: {ic_type}")
 
@@ -307,45 +319,45 @@ def main():
             print(f"Generating datasets for ε={epsilon}, IC={ic} at {t_test}")
 
             # Generate training datasets for each epsilon and IC type
-        #     dataset, ts, eps = generate_dataset(
-        #         config["n_train"],
-        #         epsilon,
-        #         x_grid,
-        #         t_train,
-        #         ic_type=ic,
-        #         seed=config["base_seed"],
-        #     )
+            dataset, ts, eps = generate_dataset(
+                config["n_train"],
+                epsilon,
+                x_grid,
+                t_train,
+                ic_type=ic,
+                seed=config["base_seed"],
+            )
 
-        #     training["dataset"].append(dataset)
-        #     training["time"].append(ts)
-        #     training["epsilon"].append(eps)
+            training["dataset"].append(dataset)
+            training["time"].append(ts)
+            training["epsilon"].append(eps)
 
-        #     # Generate standard test dataset
-        #     dataset, ts, eps = generate_dataset(
-        #         config["n_test"],
-        #         epsilon,
-        #         x_grid,
-        #         t_test,
-        #         ic_type=ic,
-        #         seed=config["base_seed"] + 100,
-        #     )
+            # Generate standard test dataset
+            dataset, ts, eps = generate_dataset(
+                config["n_test"],
+                epsilon,
+                x_grid,
+                t_test,
+                ic_type=ic,
+                seed=config["base_seed"] + 100,
+            )
 
-        #     testing["dataset"].append(dataset)
-        #     testing["time"].append(ts)
-        #     testing["epsilon"].append(eps)
+            testing["dataset"].append(dataset)
+            testing["time"].append(ts)
+            testing["epsilon"].append(eps)
 
-        # np.savez(
-        #     f"{out_dir}/train_allen_cahn_{ic}.npz",
-        #     data=np.concatenate(training["dataset"]),
-        #     time=np.concatenate(training["time"]),
-        #     epsilon=np.concatenate(training["epsilon"]),
-        # )
-        # np.savez(
-        #     f"{out_dir}/test_allen_cahn_{ic}.npz",
-        #     data=np.concatenate(testing["dataset"]),
-        #     time=np.concatenate(testing["time"]),
-        #     epsilon=np.concatenate(testing["epsilon"]),
-        # )
+        np.savez(
+            f"{out_dir}/train_allen_cahn_{ic}.npz",
+            data=np.concatenate(training["dataset"]),
+            time=np.concatenate(training["time"]),
+            epsilon=np.concatenate(training["epsilon"]),
+        )
+        np.savez(
+            f"{out_dir}/test_allen_cahn_{ic}.npz",
+            data=np.concatenate(testing["dataset"]),
+            time=np.concatenate(testing["time"]),
+            epsilon=np.concatenate(testing["epsilon"]),
+        )
 
     config["OOD_epsilons"] = [0.2, 0.15, 0.075, 0.035, 0.005]
 
