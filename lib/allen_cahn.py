@@ -263,7 +263,7 @@ def plot_time_eval(train_t_eval, test_t_eval):
     plt.xticks([0, t_end / 2, t_end])
     plt.plot(train_t_eval, np.zeros_like(train_t_eval), "o")
     plt.plot(test_t_eval, np.zeros_like(test_t_eval), "x")
-    plt.savefig("figures/eval_points.png")
+    plt.savefig("figures/eval_points.png", dpi=300)
 
 
 def create_dataset(
@@ -327,7 +327,7 @@ def main():
     print(f"Train t_eval: {train_t_eval}")
     print(f"Test t_eval: {test_t_eval}")
 
-    # plot_time_eval(train_t_eval, test_t_eval)
+    plot_time_eval(train_t_eval, test_t_eval)
 
     config = {}
 
@@ -344,37 +344,37 @@ def main():
     out_dir = "data"
     os.makedirs(out_dir, exist_ok=True)
 
-    # for ic in config["ic_types"]:
-    #     create_dataset(
-    #         config["epsilons"],
-    #         train_t_eval,
-    #         ic,
-    #         config["n_train"],
-    #         x_grid,
-    #         config["base_seed"],
-    #         f"{out_dir}/train_allen_cahn_{ic}.npz",
-    #     )
+    for ic in config["ic_types"]:
+        create_dataset(
+            config["epsilons"],
+            train_t_eval,
+            ic,
+            config["n_train"],
+            x_grid,
+            config["base_seed"],
+            f"{out_dir}/train_allen_cahn_{ic}.npz",
+        )
 
-    #     create_dataset(
-    #         config["epsilons"],
-    #         test_t_eval,
-    #         ic,
-    #         config["n_test"],
-    #         x_grid,
-    #         config["base_seed"] + 100,
-    #         f"{out_dir}/test_allen_cahn_{ic}.npz",
-    #     )
+        create_dataset(
+            config["epsilons"],
+            test_t_eval,
+            ic,
+            config["n_test"],
+            x_grid,
+            config["base_seed"] + 100,
+            f"{out_dir}/test_allen_cahn_{ic}.npz",
+        )
 
     config["OOD_epsilons"] = [0.2, 0.15, 0.075, 0.035, 0.005]
-    # create_dataset(
-    #     config["OOD_epsilons"],
-    #     test_t_eval,
-    #     "OOD",
-    #     config["n_test"],
-    #     x_grid,
-    #     config["base_seed"] + 200,
-    #     f"{out_dir}/OOD_allen_cahn.npz",
-    # )
+    create_dataset(
+        config["OOD_epsilons"],
+        test_t_eval,
+        "OOD",
+        config["n_test"],
+        x_grid,
+        config["base_seed"] + 200,
+        f"{out_dir}/OOD_allen_cahn.npz",
+    )
 
     create_dataset(
         config["OOD_epsilons"],
@@ -386,15 +386,15 @@ def main():
         f"{out_dir}/OOD_fine_tune_allen_cahn.npz",
     )
 
-    # create_dataset(
-    #     config["epsilons"],
-    #     test_t_eval,
-    #     "OOD",
-    #     config["n_test"],
-    #     x_grid,
-    #     config["base_seed"] + 300,
-    #     f"{out_dir}/OOD_IC_allen_cahn.npz",
-    # )
+    create_dataset(
+        config["epsilons"],
+        test_t_eval,
+        "OOD",
+        config["n_test"],
+        x_grid,
+        config["base_seed"] + 300,
+        f"{out_dir}/OOD_IC_allen_cahn.npz",
+    )
 
     # save config to file
     with open(f"{out_dir}/config.json", "w") as f:
