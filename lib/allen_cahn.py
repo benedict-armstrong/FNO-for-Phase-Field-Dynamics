@@ -276,7 +276,7 @@ def main():
     plt.xticks([0, t_end / 2, t_end])
     plt.plot(train_t_eval, np.zeros_like(train_t_eval), "o")
     plt.plot(test_t_eval, np.zeros_like(test_t_eval), "x")
-    plt.savefig("eval_points.png")
+    plt.savefig("figures/eval_points.png")
 
     # exit()
 
