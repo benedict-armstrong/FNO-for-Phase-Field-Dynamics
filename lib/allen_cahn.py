@@ -245,21 +245,8 @@ def generate_dataset(n_samples, epsilon, x_grid, t_eval, ic_type="fourier", seed
     return dataset, times, epsilons
 
 
-def main():
-    """Generate all datasets."""
-    # Set up spatial grid
-    nx = 128
-    x_grid = np.linspace(-1, 1, nx)
-
-    # Set up temporal grid
-    t_end = 1
-    train_t_eval = np.logspace(0, t_end, 30, base=3) - 1
-    train_t_eval = train_t_eval / train_t_eval[-1] * t_end
-    test_t_eval = np.linspace(0, t_end, 5)
-
-    print(f"Train t_eval: {train_t_eval}")
-    print(f"Test t_eval: {test_t_eval}")
-
+def plot_time_eval(train_t_eval, test_t_eval):
+    t_end = train_t_eval[-1]
     plt.figure(figsize=(6, 1))
     plt.xlim(-0.1, t_end + 0.1)
     plt.ylim(-0.1, 0.1)
@@ -278,7 +265,69 @@ def main():
     plt.plot(test_t_eval, np.zeros_like(test_t_eval), "x")
     plt.savefig("figures/eval_points.png")
 
-    # exit()
+
+def create_dataset(
+    epsilons,
+    time_eval,
+    ic,
+    n,
+    x_grid,
+    seed,
+    save_path,
+):
+    data = {
+        "dataset": [],
+        "time": [],
+        "epsilon": [],
+    }
+
+    for epsilon in epsilons:
+        time_scaling = epsilon
+
+        time_grid = time_eval * time_scaling
+
+        print(f"Generating datasets for ε={epsilon}, IC={ic} at {time_grid}")
+
+        # Generate training datasets for each epsilon and IC type
+        dataset, ts, eps = generate_dataset(
+            n,
+            epsilon,
+            x_grid,
+            time_grid,
+            ic_type=ic,
+            seed=seed,
+        )
+
+        data["dataset"].append(dataset)
+        data["time"].append(ts)
+        data["epsilon"].append(eps)
+
+    np.savez(
+        save_path,
+        data=np.concatenate(data["dataset"]),
+        time=np.concatenate(data["time"]),
+        epsilon=np.concatenate(data["epsilon"]),
+    )
+
+    return data
+
+
+def main():
+    """Generate all datasets."""
+    # Set up spatial grid
+    nx = 128
+    x_grid = np.linspace(-1, 1, nx)
+
+    # Set up temporal grid
+    t_end = 1
+    train_t_eval = np.logspace(0, t_end, 30, base=3) - 1
+    train_t_eval = train_t_eval / train_t_eval[-1] * t_end
+    test_t_eval = np.linspace(0, t_end, 5)
+
+    print(f"Train t_eval: {train_t_eval}")
+    print(f"Test t_eval: {test_t_eval}")
+
+    # plot_time_eval(train_t_eval, test_t_eval)
 
     config = {}
 
@@ -295,100 +344,57 @@ def main():
     out_dir = "data"
     os.makedirs(out_dir, exist_ok=True)
 
-    for ic in config["ic_types"]:
-        training = {
-            "dataset": [],
-            "time": [],
-            "epsilon": [],
-        }
-        testing = {
-            "dataset": [],
-            "time": [],
-            "epsilon": [],
-        }
-        for epsilon in config["epsilons"]:
-            # time_scaling = epsilon**1.5
-            time_scaling = epsilon
+    # for ic in config["ic_types"]:
+    #     create_dataset(
+    #         config["epsilons"],
+    #         train_t_eval,
+    #         ic,
+    #         config["n_train"],
+    #         x_grid,
+    #         config["base_seed"],
+    #         f"{out_dir}/train_allen_cahn_{ic}.npz",
+    #     )
 
-            config["time_scaling"][epsilon] = time_scaling
-
-            t_train = train_t_eval * time_scaling
-            t_test = test_t_eval * time_scaling
-
-            print(f"Generating datasets for ε={epsilon}, IC={ic} at {t_train}")
-            print(f"Generating datasets for ε={epsilon}, IC={ic} at {t_test}")
-
-            # Generate training datasets for each epsilon and IC type
-            dataset, ts, eps = generate_dataset(
-                config["n_train"],
-                epsilon,
-                x_grid,
-                t_train,
-                ic_type=ic,
-                seed=config["base_seed"],
-            )
-
-            training["dataset"].append(dataset)
-            training["time"].append(ts)
-            training["epsilon"].append(eps)
-
-            # Generate standard test dataset
-            dataset, ts, eps = generate_dataset(
-                config["n_test"],
-                epsilon,
-                x_grid,
-                t_test,
-                ic_type=ic,
-                seed=config["base_seed"] + 100,
-            )
-
-            testing["dataset"].append(dataset)
-            testing["time"].append(ts)
-            testing["epsilon"].append(eps)
-
-        np.savez(
-            f"{out_dir}/train_allen_cahn_{ic}.npz",
-            data=np.concatenate(training["dataset"]),
-            time=np.concatenate(training["time"]),
-            epsilon=np.concatenate(training["epsilon"]),
-        )
-        np.savez(
-            f"{out_dir}/test_allen_cahn_{ic}.npz",
-            data=np.concatenate(testing["dataset"]),
-            time=np.concatenate(testing["time"]),
-            epsilon=np.concatenate(testing["epsilon"]),
-        )
+    #     create_dataset(
+    #         config["epsilons"],
+    #         test_t_eval,
+    #         ic,
+    #         config["n_test"],
+    #         x_grid,
+    #         config["base_seed"] + 100,
+    #         f"{out_dir}/test_allen_cahn_{ic}.npz",
+    #     )
 
     config["OOD_epsilons"] = [0.2, 0.15, 0.075, 0.035, 0.005]
+    # create_dataset(
+    #     config["OOD_epsilons"],
+    #     test_t_eval,
+    #     "OOD",
+    #     config["n_test"],
+    #     x_grid,
+    #     config["base_seed"] + 200,
+    #     f"{out_dir}/OOD_allen_cahn.npz",
+    # )
 
-    OOD_datasets = {
-        "dataset": [],
-        "time": [],
-        "epsilon": [],
-    }
-    for epsilon in config["OOD_epsilons"]:
-        time_scaling = epsilon
-        t_ood = test_t_eval * time_scaling
-
-        dataset, ts, eps = generate_dataset(
-            config["n_test"],
-            epsilon,
-            x_grid,
-            t_ood,
-            ic_type="OOD",
-            seed=config["base_seed"] + 200,
-        )
-
-        OOD_datasets["dataset"].append(dataset)
-        OOD_datasets["time"].append(ts)
-        OOD_datasets["epsilon"].append(eps)
-
-    np.savez(
-        f"{out_dir}/OOD_allen_cahn.npz",
-        data=np.concatenate(OOD_datasets["dataset"]),
-        time=np.concatenate(OOD_datasets["time"]),
-        epsilon=np.concatenate(OOD_datasets["epsilon"]),
+    create_dataset(
+        config["OOD_epsilons"],
+        test_t_eval,
+        "OOD",
+        30,
+        x_grid,
+        config["base_seed"] + 123,
+        f"{out_dir}/OOD_fine_tune_allen_cahn.npz",
     )
+
+    # create_dataset(
+    #     config["epsilons"],
+    #     test_t_eval,
+    #     "OOD",
+    #     config["n_test"],
+    #     x_grid,
+    #     config["base_seed"] + 300,
+    #     f"{out_dir}/OOD_IC_allen_cahn.npz",
+    # )
 
     # save config to file
     with open(f"{out_dir}/config.json", "w") as f:
